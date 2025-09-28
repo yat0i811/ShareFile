@@ -209,8 +209,8 @@ tar -czf storage_backup_$(date +%Y%m%d_%H%M%S).tar.gz ./Storage/
 
 ## 🌐 アクセス情報
 
-- **アプリケーション**: http://localhost:8080
-- **API**: http://localhost:8080/api
+- **アプリケーション**: http://localhost:8082
+- **API**: http://localhost:8082/api
 - **データベース**: localhost:5432
   - ユーザー: `share_storage`
   - パスワード: `share_storage`
@@ -222,11 +222,11 @@ tar -czf storage_backup_$(date +%Y%m%d_%H%M%S).tar.gz ./Storage/
 ### ポート競合の解決
 ```bash
 # ポート使用状況確認（Windows）
-netstat -an | findstr :8080
+netstat -an | findstr :8082
 netstat -an | findstr :5432
 
 # ポート使用状況確認（Linux/Mac）
-lsof -i :8080
+lsof -i :8082
 lsof -i :5432
 ```
 

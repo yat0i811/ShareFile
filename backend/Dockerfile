@@ -14,4 +14,4 @@ COPY app ./app
 ENV PYTHONPATH=/app
 ENV SHARE_STORAGE_DATA_DIR=/data
 
-CMD ["uvicorn", "app.asgi:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "app.asgi:app", "--host", "0.0.0.0", "--port", "8002"]

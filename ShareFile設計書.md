@@ -253,7 +253,7 @@ services:
       - SIGNING_SECRET=change-me
     volumes:
       - data:/data
-    expose: ["8000"]
+    expose: ["8002"]
 
   worker:
     build: ./worker
@@ -301,7 +301,7 @@ http {
   tcp_nodelay on;
   server_tokens off;
 
-  upstream api_upstream { server api:8000; }
+  upstream api_upstream { server api:8002; }
 
   server {
     listen 80;
@@ -326,7 +326,7 @@ http {
 
     # フロント（Next.js プロキシ or 静的配信）
     location / {
-      proxy_pass http://frontend:3000;
+      proxy_pass http://frontend:3002;
     }
   }
 }

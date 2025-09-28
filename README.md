@@ -9,9 +9,9 @@ ShareFile は Cloudflare Free プランの制限を回避しつつ、大容量�
 Docker Compose プロジェクトを初回起動する際は `docker compose up` に `--build` オプションを付けて実行してください。
 
 起動後の主要エンドポイント:
-- フロントエンド: http://localhost:8080
-- API: http://localhost:8080/api
-- ダウンロード: http://localhost:8080/d/<file_id>?token=...
+- フロントエンド: http://localhost:8082
+- API: http://localhost:8082/api
+- ダウンロード: http://localhost:8082/d/<file_id>?token=...
 
 デフォルトの管理者資格情報:
 - ユーザー: `admin@example.com`

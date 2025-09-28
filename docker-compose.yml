@@ -41,7 +41,7 @@ services:
       redis:
         condition: service_healthy
     expose:
-      - '8000'
+      - '8002'
 
   worker:
     image: share-storage-backend
@@ -63,18 +63,19 @@ services:
     build:
       context: ./frontend
     environment:
+      PORT: 3002
       NEXT_PUBLIC_API_BASE_URL: /api
-      NEXT_PUBLIC_PUBLIC_BASE_URL: http://localhost:8080
+      NEXT_PUBLIC_PUBLIC_BASE_URL: http://localhost:8082
     depends_on:
       backend:
         condition: service_started
     expose:
-      - '3000'
+      - '3002'
 
   nginx:
     image: nginx:1.25-alpine
     ports:
-      - '8080:8080'
+      - '8082:8082'
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - ./Storage:/data:ro
