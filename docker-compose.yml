@@ -1,0 +1,88 @@
+services:
+  db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: share_storage
+      POSTGRES_USER: share_storage
+      POSTGRES_PASSWORD: share_storage
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U share_storage']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    command: redis-server --save ''
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+    image: share-storage-backend
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://share_storage:share_storage@db:5432/share_storage
+      REDIS_URL: redis://redis:6379/0
+      STORAGE_ROOT: /data
+      JWT_SECRET: super-secret-change-me
+    volumes:
+      - ./Storage:/data
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    expose:
+      - '8000'
+
+  worker:
+    image: share-storage-backend
+    command: celery -A app.worker.celery_app worker --loglevel=info
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://share_storage:share_storage@db:5432/share_storage
+      REDIS_URL: redis://redis:6379/0
+      STORAGE_ROOT: /data
+      JWT_SECRET: super-secret-change-me
+    volumes:
+      - ./Storage:/data
+    depends_on:
+      backend:
+        condition: service_started
+
+  frontend:
+    build:
+      context: ./frontend
+    environment:
+      NEXT_PUBLIC_API_BASE_URL: /api
+      NEXT_PUBLIC_PUBLIC_BASE_URL: http://localhost:8080
+    depends_on:
+      backend:
+        condition: service_started
+    expose:
+      - '3000'
+
+  nginx:
+    image: nginx:1.25-alpine
+    ports:
+      - '8080:8080'
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./Storage:/data:ro
+    depends_on:
+      frontend:
+        condition: service_started
+      backend:
+        condition: service_started
+
+volumes:
+  postgres_data:
