@@ -46,6 +46,27 @@ export function UploadManager({ token, onUploadComplete }: UploadManagerProps) {
   const [linkPassword, setLinkPassword] = useState('');
   const [linkFormError, setLinkFormError] = useState<string | null>(null);
 
+  const baseDownloadUrl = useMemo(() => {
+    const env = process.env.NEXT_PUBLIC_PUBLIC_BASE_URL?.replace(/\/$/, '');
+    if (env) {
+      return env;
+    }
+    if (typeof window !== 'undefined') {
+      return window.location.origin;
+    }
+    return '';
+  }, []);
+
+  const buildAbsoluteUrl = (pathOrUrl: string | null): string | null => {
+    if (!pathOrUrl) {
+      return null;
+    }
+    if (/^https?:\/\//i.test(pathOrUrl)) {
+      return pathOrUrl;
+    }
+    return baseDownloadUrl ? `${baseDownloadUrl}${pathOrUrl}` : pathOrUrl;
+  };
+
   const totalChunks = useMemo(() => {
     if (!file) {
       return 0;
@@ -217,10 +238,11 @@ export function UploadManager({ token, onUploadComplete }: UploadManagerProps) {
       const downloadPath = needsDownloadPage
         ? `/share-download/${fileId}?token=${encodeURIComponent(tokenParam)}${file ? `&name=${encodeURIComponent(file.name)}` : ''}`
         : result.url;
-      const baseUrl = process.env.NEXT_PUBLIC_PUBLIC_BASE_URL ?? '';
       const primaryPath = result.short_url ?? downloadPath;
-      setDownloadLink(baseUrl + primaryPath);
-      setDownloadFallbackLink(result.short_url ? baseUrl + downloadPath : null);
+      const absolutePrimary = buildAbsoluteUrl(primaryPath);
+      const absoluteFallback = result.short_url ? buildAbsoluteUrl(downloadPath) : null;
+      setDownloadLink(absolutePrimary);
+      setDownloadFallbackLink(absoluteFallback);
       setCopyMessage(null);
       setLinkPassword('');
       onUploadComplete();
