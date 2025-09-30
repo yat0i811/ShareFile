@@ -88,7 +88,9 @@ export function DownloadForm({ fileId, token, fileNameParam }: DownloadFormProps
                 onChange={(event) => setPassword(event.target.value)}
                 placeholder='設定されていない場合は空欄のまま'
                 autoComplete='off'
+                minLength={4}
               />
+              <small style={{ color: 'var(--muted-text)', fontSize: '0.85rem' }}>※ パスワードが設定されている場合は4文字以上で入力されています</small>
             </label>
             <small>{hintText}</small>
           </div>

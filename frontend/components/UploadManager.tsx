@@ -367,7 +367,9 @@ export function UploadManager({ token, onUploadComplete }: UploadManagerProps) {
                 value={linkPassword}
                 onChange={(event) => setLinkPassword(event.target.value)}
                 placeholder="未設定の場合は空欄"
+                minLength={4}
               />
+              <small style={{ color: 'var(--muted-text)', fontSize: '0.85rem' }}>※ 設定する場合は4文字以上で入力してください</small>
             </label>
             {linkFormError && <div style={{ color: 'var(--error-color)' }}>{linkFormError}</div>}
             <button onClick={handleCreateDownloadLink} disabled={status !== 'アップロード完了'} style={{ padding: '0.75rem', fontWeight: 600 }}>

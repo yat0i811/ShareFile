@@ -321,7 +321,9 @@ export function FileManager({ token, files, onRefresh, isAdmin }: FileManagerPro
                           updateFormState(file.id, { password: event.target.value })
                         }
                         placeholder="未設定の場合は空欄"
+                        minLength={4}
                       />
+                      <small style={{ color: 'var(--muted-text)', fontSize: '0.85rem' }}>※ 設定する場合は4文字以上で入力してください</small>
                     </label>
                     {errorMessage && <div style={{ color: 'var(--error-color)' }}>{errorMessage}</div>}
                     <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
