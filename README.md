@@ -1,61 +1,251 @@
 # ShareFile
 
-ShareFile は Cloudflare Free プランの制限を回避しつつ、大容量ファイルをチャンク分割してアップロード・再結合・署名付きダウンロードリンクを提供するストレージアプリです。Next.js フロントエンド、FastAPI バックエンド、Celery ワーカー、PostgreSQL、Redis、Nginx を Docker Compose でまとめて起動できます。
+大容量ファイルのチャンク分割アップロード・ダウンロード機能を提供するWebアプリケーションです。Cloudflare Free プランの制限に対応し、ファイルを小さく分割してアップロードすることで安定した大容量ファイル転送を実現します。
 
-## 必要要件
-- Docker / Docker Compose
+## 主な機能
 
-## クイックスタート
-Docker Compose プロジェクトを初回起動する際は `docker compose up` に `--build` オプションを付けて実行してください。
+- **チャンク分割アップロード**: 大容量ファイルを小さなチャンクに分割して並列アップロード
+- **中断・再開機能**: アップロードが中断されても再開可能
+- **ユーザー認証・管理**: JWT認証によるユーザー管理
+- **セキュアなダウンロード**: 署名付きURL、期限・パスワード設定
+- **管理者機能**: ユーザー管理、ファイル管理
+- **レスポンシブUI**: ダーク/ライトテーマ対応
 
-起動後の主要エンドポイント:
-- フロントエンド: http://localhost:8082
-- API: http://localhost:8082/api
-- ダウンロード: http://localhost:8082/d/<file_id>?token=...
+## 技術スタック
 
-デフォルトの管理者資格情報:
-- ユーザー: `admin@example.com`
-- パスワード: `changeme`
+### バックエンド
+- **FastAPI**: 高速なPython Web API フレームワーク
+- **PostgreSQL**: メインデータベース
+- **Redis**: セッション管理・非同期タスクキュー
+- **Celery**: 非同期ワーカー（ファイル結合処理）
+- **SQLAlchemy**: ORM
+- **Alembic**: データベースマイグレーション
 
-`.env` では `ADMIN_PASSWORD` に平文パスワードを指定するだけで利用可能です（ハッシュへ自動変換）。既存の bcrypt ハッシュを使いたい場合は `ADMIN_PASSWORD_HASH` に直接設定してください。
+### フロントエンド
+- **Next.js 14**: React フレームワーク
+- **TypeScript**: 型安全な開発
+- **CSS Modules**: スタイリング
 
-一般ユーザーはログイン画面の「新規アカウント登録」から仮登録でき、管理者が承認するとログイン可能になります。
+### インフラ
+- **Docker & Docker Compose**: コンテナ化デプロイ
+- **Nginx**: リバースプロキシ・静的ファイル配信
+- **ローカルストレージ**: ファイル保存
 
-## アーキテクチャ概要
-- **Next.js** (`frontend/`): ブラウザ上でファイルを固定サイズチャンクへ分割し、並列アップロード・レジューム・Finalize を実行。
-- **FastAPI** (`backend/`): アップロードセッション管理、チャンク受信、セッション状態照会、Finalize、ダウンロードリンク発行。
-- **Celery Worker**: チャンク再結合と SHA-256 検証を非同期実行し、成功時に `/data/files/<file_id>/data` へ配置。
-- **PostgreSQL / Redis**: メタデータ永続化とジョブキュー。
-- **Nginx**: `/api` と `/d/` を FastAPI へリバースプロキシし、`X-Accel-Redirect` による大容量ダウンロード最適化を担当。
+## 前提条件
 
-## 主要フロー
-1. フロントエンドがアップロードセッション (`POST /api/upload/sessions`) を作成。
-2. `PUT /api/upload/sessions/{id}/chunk/{index}` でチャンクを並列送信し、`X-Chunk-Checksum` と `Idempotency-Key` を付与。
-3. `POST /api/upload/sessions/{id}/finalize` で再結合ジョブを投入。
-4. Celery ワーカーがチャンクを結合・ハッシュ検証し、ファイルを確定。
-5. `POST /api/files/{file_id}/links` で署名付きリンクを作成し、`GET /d/{file_id}?token=...` でダウンロード。
+- Docker
+- Docker Compose
+- Git
 
-## 開発メモ
-- バックエンド依存関係: `backend/requirements.txt`
-- フロントエンド依存関係: `frontend/package.json`
-- ストレージボリューム: コンテナ内は `/data/uploads/tmp/<session_id>` / `/data/files/<file_id>/data`。ホスト側ではリポジトリ直下の `Storage/` に同期され、`Storage/files/<file_id>/data` に完成ファイルが配置されます。
+## セットアップ・起動手順
 
-## ユーザーと認可
-- 管理者アカウント（`.env` の `ADMIN_EMAIL`）でログインすると以下が可能です:
-  - 一般ユーザーの承認 / 無効化
-  - 容量上限（バイト単位）の設定
-  - パスワードリセット・ユーザー削除
-  - すべてのファイルの閲覧・削除
-- 一般ユーザーは承認後、自身のファイルのみアップロード/管理ができます。
+### 1. リポジトリのクローン
 
-## UI の主な使い方
-- **プログレスバー**: アップロード完了（チャンク送信 + ワーカーによる結合）まで進捗率を表示します。
-- **ダウンロードリンク発行**: 結合完了後まではボタンが無効化され、完了時に発行可能になります。
-- **ファイル管理パネル**: アップロード済みファイルの一覧表示、リンクの作成・削除、ファイル削除が可能です。各リンクにはダウンロードされた回数が表示されます。
-- **管理者パネル**: ユーザー一覧、承認、削除、容量上限設定、管理者の追加が可能です。
-- Celery ワーカー起動コマンド: `celery -A app.worker.celery_app worker --loglevel=info`
-- 必要に応じて `CORS_ALLOWED_ORIGINS` 環境変数で許可オリジンを制限。
+```bash
+git clone <repository-url>
+cd ShareFile
+```
 
-## 今後の拡張
-- cloudflare対応
+### 2. 環境変数の設定
 
+`.env` ファイルを作成し、必要な環境変数を設定します：
+
+```bash
+# データベース設定
+DATABASE_URL=postgresql+asyncpg://share_storage:share_storage@db:5432/share_storage
+
+# Redis設定
+REDIS_URL=redis://redis:6379/0
+
+# JWT設定
+JWT_SECRET=your-super-secret-jwt-key-change-this
+
+# ストレージ設定
+STORAGE_ROOT=/data
+
+# アプリケーション設定
+PROJECT_NAME=ShareFile
+CORS_ALLOWED_ORIGINS=["http://localhost:8082"]
+
+# 管理者設定
+ADMIN_EMAIL=admin@example.com
+ADMIN_PASSWORD=admin123
+```
+
+### 3. Docker Composeでアプリケーションを起動
+
+```bash
+# Windows
+start.bat
+
+# または手動実行
+docker-compose up --build
+```
+
+### 4. アプリケーションにアクセス
+
+ブラウザで `http://localhost:8082` にアクセスします。
+
+## 使用方法
+
+### 初回ログイン
+
+管理者アカウントでログイン：
+- Email: `admin@example.com`
+- Password: `admin123`
+
+### ファイルアップロード
+
+1. **ファイル選択**: アップロードするファイルを選択
+2. **チャンクサイズ設定**: デフォルト8MBから調整可能
+3. **アップロード開始**: 自動的にファイルを分割して並列アップロード
+4. **進行状況確認**: リアルタイムで進捗を確認
+5. **完了**: アップロード完了後、ダウンロードリンクを生成
+
+### ダウンロードリンク作成
+
+- **有効期限**: 1時間〜永続まで設定可能
+- **アクセス制限**: ワンタイム/複数回アクセス
+- **パスワード保護**: オプションでパスワード設定
+- **専用ページ**: ダウンロード専用ページの生成
+
+## API仕様
+
+### 認証
+
+```
+POST /api/auth/login
+POST /api/auth/register
+```
+
+### アップロード
+
+```
+POST /api/upload/sessions          # セッション作成
+GET /api/upload/sessions/{id}      # セッション状態確認
+PUT /api/upload/sessions/{id}/chunk/{index}  # チャンクアップロード
+POST /api/upload/sessions/{id}/finalize     # アップロード完了
+```
+
+### ファイル管理
+
+```
+GET /api/files                     # ファイル一覧
+GET /api/files/{id}               # ファイル詳細
+DELETE /api/files/{id}            # ファイル削除
+POST /api/files/{id}/links        # ダウンロードリンク作成
+```
+
+### ダウンロード
+
+```
+GET /d/{file_id}?token=...        # ファイルダウンロード
+GET /s/{file_id}?token=...        # 専用ダウンロードページ
+```
+
+## プロジェクト構造
+
+```
+ShareFile/
+├── backend/                 # FastAPI バックエンド
+│   ├── app/
+│   │   ├── api/            # API ルート
+│   │   ├── core/           # 設定・認証
+│   │   ├── db/             # データベース
+│   │   ├── models/         # SQLAlchemyモデル
+│   │   ├── schemas/        # Pydanticスキーマ
+│   │   ├── services/       # ビジネスロジック
+│   │   └── utils/          # ユーティリティ
+│   ├── celery_worker.py    # Celeryワーカー
+│   └── requirements.txt
+├── frontend/               # Next.js フロントエンド
+│   ├── app/               # ページルート
+│   ├── components/        # Reactコンポーネント
+│   └── lib/              # ユーティリティ
+├── nginx/                 # Nginx設定
+├── Storage/              # ファイルストレージ
+├── docker-compose.yml    # Docker構成
+└── start.bat            # 起動スクリプト
+```
+
+## 開発・運用
+
+### ログ確認
+
+```bash
+# 全サービスのログ
+docker-compose logs -f
+
+# 特定サービス
+docker-compose logs -f backend
+docker-compose logs -f worker
+```
+
+### データベース管理
+
+```bash
+# マイグレーション実行
+docker-compose exec backend alembic upgrade head
+
+# マイグレーション作成
+docker-compose exec backend alembic revision --autogenerate -m "description"
+```
+
+### ストレージ管理
+
+アップロードされたファイルは `./Storage` ディレクトリに保存されます：
+
+```
+Storage/
+├── files/           # 完成ファイル
+├── uploads/         # アップロード中ファイル
+└── tmp/            # 一時ファイル
+```
+
+### パフォーマンス設定
+
+**チャンクサイズ調整**:
+- 高速回線: 16MB以上
+- 通常回線: 8MB（デフォルト）
+- 低速回線: 2MB以下
+
+**並列アップロード数**: 最大4並列（デフォルト）
+
+### ディスク使用量
+
+定期的に `./Storage` ディレクトリの使用量を確認してください。
+
+## セキュリティ
+
+- **JWT認証**: セキュアなユーザー認証
+- **CORS設定**: オリジン制限
+- **ファイル検証**: SHA256チェックサム
+- **署名付きURL**: セキュアなダウンロード
+- **Rate Limiting**: API呼び出し制限
+
+## 制限事項
+
+- **ファイルサイズ**: デフォルト制限なし（ディスク容量依存）
+- **チャンクサイズ**: 最大20MB
+- **同時アップロード**: ユーザーあたり制限あり
+- **ストレージ**: ローカルディスクのみ
+
+## コントリビューション
+
+1. このリポジトリをフォーク
+2. 機能ブランチを作成 (`git checkout -b feature/AmazingFeature`)
+3. 変更をコミット (`git commit -m 'Add some AmazingFeature'`)
+4. ブランチにプッシュ (`git push origin feature/AmazingFeature`)
+5. プルリクエストを作成
+
+## ライセンス
+
+このプロジェクトはMITライセンスの下で公開されています。詳細は [LICENSE](LICENSE) ファイルを参照してください。
+
+## サポート
+
+問題や質問がある場合は、GitHubのIssuesページで報告してください。
+
+---
+
+**ShareFile** - Cloudflare対応の大容量ファイル転送システム
